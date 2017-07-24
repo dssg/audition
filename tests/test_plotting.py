@@ -27,6 +27,8 @@ def test_category_colordict():
 
 
 def test_plot_cats():
+    import matplotlib
+    matplotlib.use('Agg')
     test_df = pandas.DataFrame.from_dict({
         'cats': ['tuxedo', 'maine coon', 'lion!'],
         'groups': ['i', 'dont', 'know'],
