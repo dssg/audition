@@ -126,6 +126,14 @@ class DistanceFromBestTable(object):
         self._populate(model_group_ids, train_end_times, metrics)
 
     def as_dataframe(self, model_group_ids):
+        """Return model-group-id subset of table as dataframe
+
+        Args:
+            model_group_ids (list) the desired model group ids
+
+        Returns: (pandas.DataFrame) The data from the table corresponding
+            to those model group ids
+        """
         return pd.read_sql(
             'select * from {} where model_group_id in ({})'.format(
                 self.distance_table,
@@ -135,12 +143,23 @@ class DistanceFromBestTable(object):
         )
 
     def dataframe_as_of(self, model_group_ids, train_end_time):
+        """Return model group id/train end time subset of table as dataframe
+
+        Args:
+            model_group_ids (list) the desired model group ids
+            train_end_date (string) the desired train end time
+
+        Returns: (pandas.DataFrame) The data from the table corresponding
+            to those model group ids and train end time
+        """
         base_df = self.as_dataframe(model_group_ids)
         return base_df[base_df['train_end_time'] == train_end_time]
 
 
 class BestDistanceHistogrammer(object):
     def __init__(self, db_engine, distance_from_best_table):
+        """
+        """
         self.db_engine = db_engine
         self.distance_from_best_table = distance_from_best_table
 
