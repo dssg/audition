@@ -23,9 +23,6 @@ class DistanceFromBestTable(object):
         )'''.format(self.distance_table))
 
     def _populate(self, model_group_ids, train_end_times, metrics):
-        # TODO: allow min cutoff train date
-        # TODO: only include immediate eval
-        # TODO: yell at user if not all model groups included have the same test sets
         for metric in metrics:
             self.db_engine.execute('''
                 insert into {new_table}
@@ -101,6 +98,10 @@ class DistanceFromBestTable(object):
             ),
             self.db_engine
         )
+
+    def dataframe_as_of(self, model_group_ids, train_end_time):
+        base_df = self.as_dataframe(model_group_ids)
+        return base_df[base_df['train_end_time'] == train_end_time]
 
 
 class BestDistanceHistogrammer(object):

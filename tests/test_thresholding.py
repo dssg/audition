@@ -92,13 +92,20 @@ class ModelGroupThresholderTest(TestCase):
         )
         return thresholder
 
+    def dataframe_as_of(self, thresholder, train_end_time):
+        return thresholder.distance_from_best_table.dataframe_as_of(
+            model_group_ids=thresholder._model_group_ids,
+            train_end_time=train_end_time,
+        )
+
     def test_thresholder_2014_close(self):
         with testing.postgresql.Postgresql() as postgresql:
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
             thresholder._metric_filters = self.metric_filters
-            assert thresholder.model_groups_close_to_best_as_of(
-                train_end_time='2014-01-01',
+
+            assert thresholder.model_groups_close_to_best(
+                self.dataframe_as_of(thresholder, '2014-01-01')
             ) == set([1, 2])
 
     def test_thresholder_2015_close(self):
@@ -106,8 +113,8 @@ class ModelGroupThresholderTest(TestCase):
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
             thresholder._metric_filters = self.metric_filters
-            assert thresholder.model_groups_close_to_best_as_of(
-                train_end_time='2015-01-01',
+            assert thresholder.model_groups_close_to_best(
+                self.dataframe_as_of(thresholder, '2015-01-01')
             ) == set([2])
 
     def test_thresholder_2014_min(self):
@@ -115,8 +122,8 @@ class ModelGroupThresholderTest(TestCase):
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
             thresholder._metric_filters = self.metric_filters
-            assert thresholder.model_groups_above_min_as_of(
-                train_end_time='2014-01-01',
+            assert thresholder.model_groups_above_min(
+                self.dataframe_as_of(thresholder, '2014-01-01')
             ) == set([1])
 
     def test_thresholder_2015_min(self):
@@ -124,8 +131,8 @@ class ModelGroupThresholderTest(TestCase):
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
             thresholder._metric_filters = self.metric_filters
-            assert thresholder.model_groups_above_min_as_of(
-                train_end_time='2015-01-01',
+            assert thresholder.model_groups_above_min(
+                self.dataframe_as_of(thresholder, '2015-01-01')
             ) == set([1, 2, 4])
 
     def test_thresholder_all_rules(self):
