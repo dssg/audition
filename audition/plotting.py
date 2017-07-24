@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.lines as mlines
 
 
-def _category_colordict(cmap_name, categories):
+def category_colordict(cmap_name, categories):
     # want to step through the discrete color map rather than sampling
     # across the entire range, so create an even spacing from 0 to 1
     # with as many steps as in the color map (cmap.N), then repeat it
@@ -23,7 +23,7 @@ def _plot_lines(frame, x_col, y_col, ax, grp_col, colordict, cat_col):
         df.plot(x_col, y_col, ax=ax, c=color, legend=False)
 
 
-def _generate_plot_lines(colordict, label_fcn):
+def generate_plot_lines(colordict, label_fcn):
     plot_lines = []
     # plot_labs = []
     for cat_val in sorted(colordict.keys()):
@@ -99,7 +99,7 @@ def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id
 
     categories = np.unique(frame[cat_col])
 
-    colordict = _category_colordict(cmap_name, categories)
+    colordict = category_colordict(cmap_name, categories)
 
     # plot the lines, one for each model group,
     # looking up the color by model type from above
@@ -111,7 +111,7 @@ def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id
     # I had to upgrade matplotlib to get handles working, otherwise
     # had to call like this with plot_labs as a separate list
     # plt.legend(plot_patches, plot_labs, loc=4, fontsize=10)
-    plot_lines = _generate_plot_lines(colordict, label_fcn)
+    plot_lines = generate_plot_lines(colordict, label_fcn)
 
     plt.legend(handles=plot_lines, loc=legend_loc, fontsize=legend_fontsize)
 
