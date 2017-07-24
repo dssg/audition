@@ -1,7 +1,10 @@
+import matplotlib
 from audition.plotting import generate_plot_lines, category_colordict, plot_cats
 import matplotlib.lines as mlines
 import pandas
 from unittest.mock import patch
+
+matplotlib.use('Agg')
 
 
 def test_generate_plot_lines():
@@ -27,8 +30,6 @@ def test_category_colordict():
 
 
 def test_plot_cats():
-    import matplotlib
-    matplotlib.use('Agg')
     test_df = pandas.DataFrame.from_dict({
         'cats': ['tuxedo', 'maine coon', 'lion!'],
         'groups': ['i', 'dont', 'know'],
