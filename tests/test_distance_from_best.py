@@ -10,6 +10,7 @@ from catwalk.db import ensure_db
 import factory
 import numpy
 from tests.utils import create_sample_distance_table
+from unittest.mock import patch
 
 
 def test_DistanceFromBestTable():
@@ -143,3 +144,25 @@ def test_BestDistanceHistogrammer():
             (df_dist['model_group_id'] == 1)
         ]['pct_of_time'].values:
             assert numpy.isclose(value, 0.5)
+
+
+def test_BestDistanceHistogrammer_plot():
+    with patch('audition.distance_from_best.plot_cats') as plot_patch:
+        with testing.postgresql.Postgresql() as postgresql:
+            engine = create_engine(postgresql.url())
+            distance_table, model_groups = create_sample_distance_table(engine)
+            histogrammer = BestDistanceHistogrammer(
+                engine,
+                distance_table
+            )
+            histogrammer.plot_all_best_dist(
+                [{'metric': 'precision@', 'metric_param': '100_abs'}],
+                model_group_ids=[1, 2],
+                train_end_times=['2014-01-01', '2015-01-01'],
+            )
+        assert plot_patch.called
+        args, kwargs = plot_patch.call_args
+        assert 'pct_diff' in kwargs['frame']
+        assert 'pct_of_time' in kwargs['frame']
+        assert kwargs['x_col'] == 'pct_diff'
+        assert kwargs['y_col'] == 'pct_of_time'

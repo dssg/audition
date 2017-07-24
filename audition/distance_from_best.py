@@ -210,9 +210,9 @@ def plot_best_dist(metric, metric_param, df_best_dist, **plt_format_args):
     plt_title = 'Fraction of models X pp worse than best {} {}'.format(metric, metric_param)
 
     plot_cats(
-        df_best_dist,
-        'pct_diff',
-        'pct_of_time',
+        frame=df_best_dist,
+        x_col='pct_diff',
+        y_col='pct_of_time',
         cat_col=cat_col,
         title=plt_title,
         x_label='decrease in {} from best model'.format(metric),
