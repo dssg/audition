@@ -36,7 +36,6 @@ def test_plot_cats():
     })
     # hard to make many assertions, but we can make sure it gets to the end
     # and shows the contents
-    with patch.dict('os.environ', {'DISPLAY': ':0.0'}):
-        with patch('audition.plotting.plt.show') as show_patch:
-            plot_cats(test_df, 'col1', 'col2', cat_col='cats', grp_col='groups')
-            assert show_patch.called
+    with patch('audition.plotting.plt.show') as show_patch:
+        plot_cats(test_df, 'col1', 'col2', cat_col='cats', grp_col='groups')
+        assert show_patch.called
