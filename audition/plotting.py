@@ -3,6 +3,42 @@ import numpy as np
 import matplotlib.lines as mlines
 
 
+def _category_colordict(cmap_name, categories):
+    # want to step through the discrete color map rather than sampling
+    # across the entire range, so create an even spacing from 0 to 1
+    # with as many steps as in the color map (cmap.N), then repeat it
+    # enough times to ensure we cover all our categories
+    cmap = plt.get_cmap(cmap_name)
+    ncyc = int(np.ceil(1.0*len(categories) / cmap.N))
+    colors = (cmap.colors * ncyc)[:len(categories)]
+    return dict(zip(categories, colors))
+
+
+def _plot_lines(frame, x_col, y_col, ax, grp_col, colordict, cat_col):
+    # plot the lines, one for each model group,
+    # looking up the color by model type from above
+    for grp_val in np.unique(frame[grp_col]):
+        df = frame.loc[frame[grp_col] == grp_val]
+        color = colordict[df.iloc[0][cat_col]]
+        df.plot(x_col, y_col, ax=ax, c=color, legend=False)
+
+
+def _generate_plot_lines(colordict, label_fcn):
+    plot_lines = []
+    # plot_labs = []
+    for cat_val in sorted(colordict.keys()):
+        # http://matplotlib.org/users/legend_guide.html
+        lin = mlines.Line2D(
+            xdata=[],
+            ydata=[],
+            color=colordict[cat_val],
+            label=label_fcn(cat_val)
+        )
+        plot_lines.append(lin)
+        # plot_labs.append(mt)
+    return plot_lines
+
+
 def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id',
               title='', x_label='', y_label='', cmap_name='Vega10',
               figsize=[12, 6], x_ticks=None, y_ticks=None,
@@ -28,7 +64,7 @@ def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id
         legend_loc (string) -- allows specifying location of plot legend
         legend_fontsize (int) -- allows specifying font size for legend
         label_fontsize (int) -- allows specifying font size for axis labels
-        title_fontzie (int) -- allows specifying font size for plot title
+        title_fontsize (int) -- allows specifying font size for plot title
         label_fcn (method) -- function to map category names to more readable
                                 names, accepting values of cat_col
     """
@@ -43,21 +79,11 @@ def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id
 
     categories = np.unique(frame[cat_col])
 
-    # want to step through the discrete color map rather than sampling
-    # across the entire range, so create an even spacing from 0 to 1
-    # with as many steps as in the color map (cmap.N), then repeat it
-    # enough times to ensure we cover all our categories
-    cmap = plt.get_cmap(cmap_name)
-    ncyc = int(np.ceil(1.0*len(categories) / cmap.N))
-    colors = (cmap.colors * ncyc)[:len(categories)]
-    colordict = dict(zip(categories, colors))
+    colordict = _category_colordict(cmap_name, categories)
 
     # plot the lines, one for each model group,
     # looking up the color by model type from above
-    for grp_val in np.unique(frame[grp_col]):
-        df = frame.loc[frame[grp_col] == grp_val]
-        color = colordict[df.iloc[0][cat_col]]
-        df.plot(x_col, y_col, ax=ax, c=color, legend=False)
+    _plot_lines(frame, x_col, y_col, ax, grp_col, colordict, cat_col)
 
     # have to set the legend manually since we don't want one legend
     # entry per line on the plot, just one per model type.
@@ -65,19 +91,7 @@ def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id
     # I had to upgrade matplotlib to get handles working, otherwise
     # had to call like this with plot_labs as a separate list
     # plt.legend(plot_patches, plot_labs, loc=4, fontsize=10)
-
-    plot_lines = []
-    # plot_labs = []
-    for cat_val in sorted(colordict.keys()):
-        # http://matplotlib.org/users/legend_guide.html
-        lin = mlines.Line2D(
-            xdata=[],
-            ydata=[],
-            color=colordict[cat_val],
-            label=label_fcn(cat_val)
-        )
-        plot_lines.append(lin)
-        # plot_labs.append(mt)
+    plot_lines = _generate_plot_lines(colordict, label_fcn)
 
     plt.legend(handles=plot_lines, loc=legend_loc, fontsize=legend_fontsize)
     ax.set_ylim([0, 1.1])

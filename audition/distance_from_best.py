@@ -115,7 +115,6 @@ class BestDistanceHistogrammer(object):
         metric_param,
         model_group_ids,
         train_end_times,
-        max_below_best,
     ):
         """Fetch a best distance data frame from the distance table
 
@@ -133,7 +132,6 @@ class BestDistanceHistogrammer(object):
             'metric_param': metric_param,
             'model_group_union_sql': model_group_union_sql,
             'distance_table': self.distance_from_best_table.distance_table,
-            'max_below_best': max_below_best,
             'model_group_str': str_in_sql(model_group_ids),
             'train_end_str': str_in_sql(train_end_times),
         }
@@ -171,7 +169,6 @@ class BestDistanceHistogrammer(object):
             df = self.generate_histogram_data(
                 metric=metric_filter['metric'],
                 metric_param=metric_filter['metric_param'],
-                max_below_best=metric_filter['max_below_best'],
                 model_group_ids=model_group_ids,
                 train_end_times=train_end_times
             )

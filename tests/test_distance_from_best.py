@@ -124,7 +124,6 @@ def test_BestDistanceHistogrammer():
         df_dist = histogrammer.generate_histogram_data(
             metric='precision@',
             metric_param='100_abs',
-            max_below_best=0.2,
             model_group_ids=[1, 2],
             train_end_times=['2014-01-01', '2015-01-01']
         )
