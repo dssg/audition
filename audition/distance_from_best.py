@@ -6,11 +6,21 @@ import numpy as np
 
 class DistanceFromBestTable(object):
     def __init__(self, db_engine, models_table, distance_table):
+        """A database table that stores the distance from models and the
+        best model for that train end time for a variety of chosen metrics
+
+        Args:
+            db_engine (sqlalchemy.engine)
+            models_table (string) The name of a models table in the database, pre-populated
+            distance_table (string) The desired name of the distance table to be
+                produced by this class
+        """
         self.db_engine = db_engine
         self.models_table = models_table
         self.distance_table = distance_table
 
     def _create(self):
+        """Create the distance-from-best table"""
         self.db_engine.execute('''create table {} (
             model_group_id int,
             model_id int,
@@ -23,6 +33,18 @@ class DistanceFromBestTable(object):
         )'''.format(self.distance_table))
 
     def _populate(self, model_group_ids, train_end_times, metrics):
+        """Populate the distance table with the given model groups, times, and metrics
+
+        Args:
+            model_group_ids (list) Model group ids to include in the distance table
+            train_end_times (list) Train end times to include in the table
+            metrics (list) Metrics and params to include in the table. Each
+                row should be a dict with keys:
+                        'metric' (e.g. 'precision@')
+                        'param' (e.g. '100_abs')
+                All models should have the results.evaluations table populated
+                for all given model group ids, train end times, and metric/param combos
+        """
         for metric in metrics:
             self.db_engine.execute('''
                 insert into {new_table}
@@ -87,6 +109,19 @@ class DistanceFromBestTable(object):
         train_end_times,
         metrics,
     ):
+        """Creates and populates the distance table with the
+            given model groups, times, and metrics
+
+        Args:
+            model_group_ids (list) Model group ids to include in the distance table
+            train_end_times (list) Train end times to include in the table
+            metrics (list) Metrics and params to include in the table. Each
+                row should be a dict with keys:
+                        'metric' (e.g. 'precision@')
+                        'param' (e.g. '100_abs')
+                All models should have the results.evaluations table populated
+                for all given model group ids, train end times, and metric/param combos
+        """
         self._create()
         self._populate(model_group_ids, train_end_times, metrics)
 

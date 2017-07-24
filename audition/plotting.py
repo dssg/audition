@@ -1,9 +1,10 @@
 import matplotlib
-from matplotlib import pyplot as plt
 import numpy as np
 import matplotlib.lines as mlines
 
 matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
 
 def category_colordict(cmap_name, categories):
     # want to step through the discrete color map rather than sampling
