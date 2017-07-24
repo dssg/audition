@@ -39,6 +39,26 @@ def _generate_plot_lines(colordict, label_fcn):
     return plot_lines
 
 
+def _config_axes(
+    ax,
+    x_ticks,
+    y_ticks,
+    title,
+    title_fontsize,
+    x_label,
+    y_label,
+    label_fontsize
+):
+    if x_ticks is not None:
+        ax.set_xticks(x_ticks)
+    if y_ticks is not None:
+        ax.set_yticks(y_ticks)
+    ax.set_ylim([0, 1.1])
+    ax.set_title(title, fontsize=title_fontsize)
+    ax.set_ylabel(y_label, fontsize=label_fontsize)
+    ax.set_xlabel(x_label, fontsize=label_fontsize)
+
+
 def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id',
               title='', x_label='', y_label='', cmap_name='Vega10',
               figsize=[12, 6], x_ticks=None, y_ticks=None,
@@ -94,13 +114,16 @@ def plot_cats(frame, x_col, y_col, cat_col='model_type', grp_col='model_group_id
     plot_lines = _generate_plot_lines(colordict, label_fcn)
 
     plt.legend(handles=plot_lines, loc=legend_loc, fontsize=legend_fontsize)
-    ax.set_ylim([0, 1.1])
-    if x_ticks is not None:
-        ax.set_xticks(x_ticks)
-    if y_ticks is not None:
-        ax.set_yticks(y_ticks)
-    ax.set_title(title, fontsize=title_fontsize)
-    ax.set_ylabel(y_label, fontsize=label_fontsize)
-    ax.set_xlabel(x_label, fontsize=label_fontsize)
+
+    _config_axes(
+        ax=ax,
+        x_ticks=x_ticks,
+        y_ticks=y_ticks,
+        title=title,
+        title_fontsize=title_fontsize,
+        x_label=x_label,
+        y_label=y_label,
+        label_fontsize=label_fontsize,
+    )
 
     plt.show()
