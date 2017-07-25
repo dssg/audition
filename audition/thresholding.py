@@ -37,7 +37,7 @@ class ModelGroupThresholder(object):
         """
         self.distance_from_best_table = distance_from_best_table
         self.train_end_times = train_end_times
-        self._model_group_ids = initial_model_group_ids
+        self._initial_model_group_ids = initial_model_group_ids
         self._metric_filters = []
 
     def _filter_model_groups(self, df, filter_func):
@@ -52,7 +52,7 @@ class ModelGroupThresholder(object):
 
         Returns: (set) The model group ids that pass filtering
         """
-        passing = set(self._model_group_ids)
+        passing = set(self._initial_model_group_ids)
         for metric_filter in self._metric_filters:
             passing &= set(filter_func(
                 _of_metric(df, metric_filter),
@@ -93,11 +93,11 @@ class ModelGroupThresholder(object):
 
         Returns: (set) The passing model group ids
         """
-        below_min_model_groups = set(self._model_group_ids)
+        below_min_model_groups = set(self._initial_model_group_ids)
         close_to_best_model_groups = set()
         for train_end_time in self.train_end_times:
             df_as_of = self.distance_from_best_table.dataframe_as_of(
-                model_group_ids=self._model_group_ids,
+                model_group_ids=self._initial_model_group_ids,
                 train_end_time=train_end_time,
             )
             close_to_best = self.model_groups_close_to_best(df_as_of)
@@ -139,8 +139,7 @@ class ModelGroupThresholder(object):
         """
         if new_metric_filters != self._metric_filters:
             self._metric_filters = new_metric_filters
-            self._model_group_ids = self.model_groups_passing_rules()
 
     @property
     def model_group_ids(self):
-        return self._model_group_ids
+        return self.model_groups_passing_rules()

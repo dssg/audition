@@ -93,7 +93,7 @@ class ModelGroupThresholderTest(TestCase):
 
     def dataframe_as_of(self, thresholder, train_end_time):
         return thresholder.distance_from_best_table.dataframe_as_of(
-            model_group_ids=thresholder._model_group_ids,
+            model_group_ids=thresholder._initial_model_group_ids,
             train_end_time=train_end_time,
         )
 
@@ -147,7 +147,7 @@ class ModelGroupThresholderTest(TestCase):
         with testing.postgresql.Postgresql() as postgresql:
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
-            assert thresholder.model_group_ids == [1, 2, 4, 5]
+            assert thresholder.model_group_ids == set([1, 2, 4, 5])
             thresholder.update_filters([
                 {
                     'metric': 'precision@',
@@ -163,3 +163,5 @@ class ModelGroupThresholderTest(TestCase):
                 }
             ])
             assert thresholder.model_group_ids == set([1])
+            thresholder.update_filters([])
+            assert thresholder.model_group_ids == set([1, 2, 4, 5])
