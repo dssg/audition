@@ -85,7 +85,6 @@ class ModelGroupThresholderTest(TestCase):
                 dist_row
             )
         thresholder = ModelGroupThresholder(
-            db_engine=engine,
             distance_from_best_table=distance_table,
             train_end_times=['2014-01-01', '2015-01-01'],
             initial_model_group_ids=[1, 2, 4, 5]

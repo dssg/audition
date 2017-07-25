@@ -118,10 +118,7 @@ def test_BestDistanceHistogrammer():
     with testing.postgresql.Postgresql() as postgresql:
         engine = create_engine(postgresql.url())
         distance_table, model_groups = create_sample_distance_table(engine)
-        histogrammer = BestDistanceHistogrammer(
-            engine,
-            distance_table
-        )
+        histogrammer = BestDistanceHistogrammer(distance_table)
         df_dist = histogrammer.generate_histogram_data(
             metric='precision@',
             metric_param='100_abs',
@@ -151,10 +148,7 @@ def test_BestDistanceHistogrammer_plot():
         with testing.postgresql.Postgresql() as postgresql:
             engine = create_engine(postgresql.url())
             distance_table, model_groups = create_sample_distance_table(engine)
-            histogrammer = BestDistanceHistogrammer(
-                engine,
-                distance_table
-            )
+            histogrammer = BestDistanceHistogrammer(distance_table)
             histogrammer.plot_all_best_dist(
                 [{'metric': 'precision@', 'metric_param': '100_abs'}],
                 model_group_ids=[1, 2],

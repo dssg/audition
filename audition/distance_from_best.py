@@ -157,10 +157,14 @@ class DistanceFromBestTable(object):
 
 
 class BestDistanceHistogrammer(object):
-    def __init__(self, db_engine, distance_from_best_table):
+    def __init__(self, distance_from_best_table):
+        """Generate a histogram illustrating the effect of different below-best maximum
+        thresholds across the dataset.
+
+        Args:
+            distance_from_best_table (audition.DistanceFromBestTable)
+                A pre-populated distance-from-best database table
         """
-        """
-        self.db_engine = db_engine
         self.distance_from_best_table = distance_from_best_table
 
     def generate_histogram_data(
@@ -170,12 +174,17 @@ class BestDistanceHistogrammer(object):
         model_group_ids,
         train_end_times,
     ):
-        """Fetch a best distance data frame from the distance table
+        """Fetch data necessary for producing the histogram from the distance table
 
         Arguments:
             metric (string) -- model evaluation metric, such as 'precision@'
             metric_param (string) -- model evaluation metric parameter,
                 such as '300_abs'
+            model_group_ids (list) - Model group ids to include in the dataset
+            train_end_times (list) - Train end times to include in the dataset
+
+        Returns: (pandas.DataFrame) The relevant models and the percentage of time
+            each was within various thresholds of the best model at that time
         """
         model_group_union_sql = ' union all '.join([
             '(select {} as model_group_id)'.format(model_group_id)
@@ -216,9 +225,24 @@ class BestDistanceHistogrammer(object):
                 GROUP BY 1,2,3
             """.format(**sel_params)
 
-        return pd.read_sql(sel, self.db_engine)
+        return pd.read_sql(sel, self.distance_from_best_table.db_engine)
 
     def plot_all_best_dist(self, metric_filters, model_group_ids, train_end_times):
+        """For each metric, plot the percentage of time that a model group is
+        within X percentage points of the best-performing model group using that
+        metric.
+
+        Arguments:
+            metric_filters (list) The metrics to plot. Each element should be
+                a dict with the following keys:
+
+                metric (string) -- model evaluation metric, such as 'precision@'
+                metric_param (string) -- model evaluation metric parameter,
+                    such as '300_abs'
+            model_group_ids (list) - Model group ids to include in the plot
+            train_end_times (list) - Train end times to include in the plot
+
+        """
         for metric_filter in metric_filters:
             df = self.generate_histogram_data(
                 metric=metric_filter['metric'],
