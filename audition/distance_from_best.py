@@ -1,4 +1,4 @@
-from audition.utils import str_in_sql
+from audition.utils import greater_is_better, str_in_sql
 from audition.plotting import plot_cats
 import pandas as pd
 import numpy as np
@@ -33,10 +33,22 @@ class DistanceFromBestTable(object):
             train_end_time timestamp,
             metric text,
             parameter text,
-            raw_value float,
-            below_best float,
-            below_best_next_time float
+            dist_from_abs_worst float,
+            dist_from_best_case float,
+            dist_from_best_case_next_time float
         )'''.format(self.distance_table))
+
+    def _metric_value_order(self, metric):
+        if greater_is_better(metric):
+            return 'desc'
+        else:
+            return 'asc'
+
+    def _abs_worst(self, metric):
+        if greater_is_better(metric):
+            return 0.0
+        else:
+            return 1.0
 
     def _populate(self, model_group_ids, train_end_times, metrics):
         """Populate the distance table with the given model groups, times, and metrics
@@ -62,7 +74,7 @@ class DistanceFromBestTable(object):
                         ev.value,
                         row_number() OVER (
                             PARTITION BY m.train_end_time
-                            ORDER BY ev.value DESC, RANDOM()
+                            ORDER BY ev.value {metric_value_order}, RANDOM()
                         ) AS rank
                   FROM results.evaluations ev
                   JOIN results.{models_table} m USING(model_id)
@@ -88,17 +100,17 @@ class DistanceFromBestTable(object):
                         train_end_time,
                         '{metric}',
                         '{parameter}',
-                        value as raw_value,
-                        best_val - value below_best
+                        abs(value - {abs_worst}) as dist_from_abs_worst,
+                        abs(value - best_val) dist_from_best_case
                     FROM model_tols
                 )
                 select
                     current_best_vals.*,
-                    first_value(below_best) over (
+                    first_value(dist_from_best_case) over (
                         partition by model_group_id
                         order by train_end_time asc
                         rows between 1 following and unbounded following
-                    ) below_best_next_time
+                    ) dist_from_best_case_next_time
                 from current_best_vals
                 order by train_end_time
             '''.format(
@@ -107,6 +119,8 @@ class DistanceFromBestTable(object):
                 models_table=self.models_table,
                 metric=metric['metric'],
                 parameter=metric['parameter'],
+                metric_value_order=self._metric_value_order(metric['metric']),
+                abs_worst=self._abs_worst(metric['metric']),
                 new_table=self.distance_table
             ))
 
@@ -225,7 +239,7 @@ class BestDistancePlotter(object):
                 )
                 SELECT dist.model_group_id, pct_diff, mg.model_type,
                        COUNT(*) AS num_models,
-                       AVG(CASE WHEN below_best <= pct_diff THEN 1 ELSE 0 END) AS pct_of_time
+                       AVG(CASE WHEN dist_from_best_case <= pct_diff THEN 1 ELSE 0 END) AS pct_of_time
                 FROM {distance_table} dist
                 JOIN x_vals USING(model_group_id)
                 JOIN results.model_groups mg using (model_group_id)

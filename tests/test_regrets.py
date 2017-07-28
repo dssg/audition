@@ -34,7 +34,7 @@ def test_regret_calculator_with_args():
         def pick_highest_avg(df, train_end_time, metric, parameter):
             assert len(df['train_end_time'].unique()) == 2
             subsetted = df[(df['metric'] == metric) & (df['parameter'] == parameter)]
-            mean = subsetted.groupby(['model_group_id'])['raw_value'].mean()
+            mean = subsetted.groupby(['model_group_id'])['dist_from_abs_worst'].mean()
             return mean.nlargest(1).index[0]
 
         regret_calculator = RegretCalculator(

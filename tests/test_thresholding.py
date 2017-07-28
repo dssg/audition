@@ -12,14 +12,14 @@ class ModelGroupThresholderTest(TestCase):
         {
             'metric': 'precision@',
             'parameter': '100_abs',
-            'max_below_best': 0.2,
-            'min_value': 0.4,
+            'max_from_best': 0.2,
+            'threshold_value': 0.4,
         },
         {
             'metric': 'recall@',
             'parameter': '100_abs',
-            'max_below_best': 0.2,
-            'min_value': 0.4,
+            'max_from_best': 0.2,
+            'threshold_value': 0.4,
         }
     ]
 
@@ -103,7 +103,7 @@ class ModelGroupThresholderTest(TestCase):
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
 
-            assert thresholder.model_groups_close_to_best(
+            assert thresholder.model_groups_close_to_best_case(
                 self.dataframe_as_of(thresholder, '2014-01-01')
             ) == set([1, 2])
 
@@ -111,23 +111,23 @@ class ModelGroupThresholderTest(TestCase):
         with testing.postgresql.Postgresql() as postgresql:
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
-            assert thresholder.model_groups_close_to_best(
+            assert thresholder.model_groups_close_to_best_case(
                 self.dataframe_as_of(thresholder, '2015-01-01')
             ) == set([2])
 
-    def test_thresholder_2014_min(self):
+    def test_thresholder_2014_threshold(self):
         with testing.postgresql.Postgresql() as postgresql:
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
-            assert thresholder.model_groups_above_min(
+            assert thresholder.model_groups_past_threshold(
                 self.dataframe_as_of(thresholder, '2014-01-01')
             ) == set([1])
 
-    def test_thresholder_2015_min(self):
+    def test_thresholder_2015_threshold(self):
         with testing.postgresql.Postgresql() as postgresql:
             engine = create_engine(postgresql.url())
             thresholder = self.setup_data(engine)
-            assert thresholder.model_groups_above_min(
+            assert thresholder.model_groups_past_threshold(
                 self.dataframe_as_of(thresholder, '2015-01-01')
             ) == set([1, 2, 4])
 

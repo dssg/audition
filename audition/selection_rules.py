@@ -1,6 +1,5 @@
-
-def highest_metric_value(df, train_end_time, metric, param):
-    """Pick the model group with the highest current metric value
+def best_metric_value(df, train_end_time, metric, param):
+    """Pick the model group with the best current metric value
 
     Arguments:
         metric (string) -- model evaluation metric, such as 'precision@'
@@ -13,8 +12,8 @@ def highest_metric_value(df, train_end_time, metric, param):
                 train_end_time,
                 metric,
                 parameter,
-                raw_value,
-                below_best
+                dist_from_abs_worst,
+                dist_from_best_case
     Returns: (int) the model group id to select, with highest current raw metric value
     """
     curr_df = df.loc[
@@ -23,13 +22,14 @@ def highest_metric_value(df, train_end_time, metric, param):
                 (df['parameter'] == param)
               ]
     # sample(frac=1) to shuffle rows so we don't accidentally introduce bias in breaking ties
+
     return curr_df\
-        .loc[curr_df['raw_value'] == curr_df['raw_value'].max(), 'model_group_id']\
+        .loc[curr_df['dist_from_abs_worst'] == curr_df['dist_from_abs_worst'].max(), 'model_group_id']\
         .sample(frac=1)\
         .tolist()[0]
 
 
-def highest_average_value(df, train_end_time, metric, param):
+def best_average_value(df, train_end_time, metric, param):
     """Pick the model with the highest average metric value so far
 
     Arguments:
@@ -43,8 +43,8 @@ def highest_average_value(df, train_end_time, metric, param):
                 train_end_time,
                 metric,
                 parameter,
-                raw_value,
-                below_best
+                dist_from_abs_worst,
+                dist_from_best_case
     Returns: (int) the model group id to select, with highest mean raw metric value
     """
 
@@ -53,7 +53,7 @@ def highest_average_value(df, train_end_time, metric, param):
                 (df['parameter'] == param)
             ]
     # sample(frac=1) to shuffle rows so we don't accidentally introduce bias in breaking ties
-    return met_df.groupby(['model_group_id'])['raw_value'].mean().sample(frac=1).idxmax()
+    return met_df.groupby(['model_group_id'])['dist_from_abs_worst'].mean().sample(frac=1).idxmax()
 
 
 def most_frequent_best_dist(df, train_end_time, metric, param, dist_from_best):
@@ -81,12 +81,12 @@ def most_frequent_best_dist(df, train_end_time, metric, param, dist_from_best):
                 (df['metric'] == metric) &
                 (df['parameter'] == param)
             ]
-    met_df['within_dist'] = (df['below_best'] <= dist_from_best).astype('int')
+    met_df['within_dist'] = (df['dist_from_best_case'] <= dist_from_best).astype('int')
     # sample(frac=1) to shuffle rows so we don't accidentally introduce bias in breaking ties
     return met_df.groupby(['model_group_id'])['within_dist'].mean().sample(frac=1).idxmax()
 
 
-def highest_average_two_metrics(
+def best_average_two_metrics(
     df,
     train_end_time,
     metric1,
@@ -137,7 +137,7 @@ def highest_average_two_metrics(
         'weighted_raw'
     ] = met_df.loc[
         (met_df['metric'] == metric1) & (met_df['parameter'] == param1),
-        'raw_value'
+        'dist_from_abs_worst'
     ] * metric1_weight
 
     met_df.loc[
@@ -145,7 +145,7 @@ def highest_average_two_metrics(
         'weighted_raw'
     ] = met_df.loc[
         (met_df['metric'] == metric2) & (met_df['parameter'] == param2),
-        'raw_value'
+        'dist_from_abs_worst'
     ] * (1.0 - metric1_weight)
 
     met_df_wt = met_df.groupby(['model_group_id', 'train_end_time'], as_index=False).sum()
@@ -155,8 +155,8 @@ def highest_average_two_metrics(
 
 
 SELECTION_RULES = {
-    'highest_metric_value': highest_metric_value,
-    'highest_average_value': highest_average_value,
+    'best_metric_value': best_metric_value,
+    'best_average_value': best_average_value,
     'most_frequent_best_dist': most_frequent_best_dist,
-    'highest_average_two_metrics': highest_average_two_metrics,
+    'best_average_two_metrics': best_average_two_metrics,
 }

@@ -92,9 +92,9 @@ def test_DistanceFromBestTable():
 
         # get an ordered list of the models/groups for a particular metric/time
         query = '''
-            select model_id, raw_value, below_best, below_best_next_time
+            select model_id, dist_from_abs_worst, dist_from_best_case, dist_from_best_case_next_time
             from dist_table where metric = %s and parameter = %s and train_end_time = %s
-            order by below_best
+            order by dist_from_best_case
         '''
 
         prec_3y_ago = engine.execute(query, ('precision@', '100_abs', '2014-01-01'))
@@ -110,6 +110,74 @@ def test_DistanceFromBestTable():
             (models['spiky_2y_ago'].model_id, 0.8, 0, 0.19),
             (models['stable_2y_ago'].model_id, 0.56, 0.24, 0),
             (models['bad_2y_ago'].model_id, 0.34, 0.46, 0.19),
+
+        ]
+
+
+def test_DistanceFromBestTable_lesser_is_better():
+    with testing.postgresql.Postgresql() as postgresql:
+        engine = create_engine(postgresql.url())
+        ensure_db(engine)
+        init_engine(engine)
+        model_groups = {
+            'good': ModelGroupFactory(model_type='myGoodClassifier'),
+            'bad': ModelGroupFactory(model_type='myBadClassifier'),
+        }
+
+        class GoodModelFactory(ModelFactory):
+            model_group_rel = model_groups['good']
+
+        class BadModelFactory(ModelFactory):
+            model_group_rel = model_groups['bad']
+
+        models = {
+            'good_3y_ago': GoodModelFactory(train_end_time='2014-01-01'),
+            'good_2y_ago': GoodModelFactory(train_end_time='2015-01-01'),
+            'good_1y_ago': GoodModelFactory(train_end_time='2016-01-01'),
+            'bad_3y_ago': BadModelFactory(train_end_time='2014-01-01'),
+            'bad_2y_ago': BadModelFactory(train_end_time='2015-01-01'),
+            'bad_1y_ago': BadModelFactory(train_end_time='2016-01-01'),
+        }
+
+        class ImmediateEvalFactory(EvaluationFactory):
+            evaluation_start_time = factory.LazyAttribute(lambda o: o.model_rel.train_end_time)
+
+        class FPR100Factory(ImmediateEvalFactory):
+            metric = 'fpr@'
+            parameter = '100_abs'
+
+        FPR100Factory(model_rel=models['good_3y_ago'], value=0.6)
+        FPR100Factory(model_rel=models['good_2y_ago'], value=0.57)
+        FPR100Factory(model_rel=models['good_1y_ago'], value=0.59)
+        FPR100Factory(model_rel=models['bad_3y_ago'], value=0.8)
+        FPR100Factory(model_rel=models['bad_2y_ago'], value=0.7)
+        FPR100Factory(model_rel=models['bad_1y_ago'], value=0.75)
+        session.commit()
+        distance_table = DistanceFromBestTable(
+            db_engine=engine,
+            models_table='models',
+            distance_table='dist_table'
+        )
+        metrics = [
+            {'metric': 'fpr@', 'parameter': '100_abs'},
+        ]
+        model_group_ids = [mg.model_group_id for mg in model_groups.values()]
+        distance_table.create_and_populate(
+            model_group_ids,
+            ['2014-01-01', '2015-01-01', '2016-01-01'],
+            metrics)
+
+        # get an ordered list of the models/groups for a particular metric/time
+        query = '''
+            select model_id, dist_from_abs_worst, dist_from_best_case, dist_from_best_case_next_time
+            from dist_table where metric = %s and parameter = %s and train_end_time = %s
+            order by dist_from_best_case
+        '''
+
+        result = engine.execute(query, ('fpr@', '100_abs', '2014-01-01'))
+        assert [row for row in result] == [
+            (models['good_3y_ago'].model_id, 0.4, 0.0, 0.0),
+            (models['bad_3y_ago'].model_id, 0.2, 0.2, 0.13),
 
         ]
 
