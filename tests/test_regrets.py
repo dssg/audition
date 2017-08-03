@@ -1,4 +1,5 @@
-from audition.regrets import RegretCalculator
+from audition.regrets import RegretCalculator, SelectionRulePlotter, BoundSelectionRule
+from audition.selection_rules import *
 import testing.postgresql
 from sqlalchemy import create_engine
 from tests.utils import create_sample_distance_table
@@ -24,6 +25,26 @@ def test_regret_calculator():
             selection_rule_args={}
         )
         assert regrets == [0.19, 0.3, 0.12]
+
+        plotter = SelectionRulePlotter(regret_calculator)
+        plotter.plot_all_selection_rules(
+            bound_selection_rules=[
+                BoundSelectionRule(
+                    descriptive_name='best_precision',
+                    function=best_metric_value,
+                    args={'metric': 'precision@', 'parameter': '100_abs'}
+                ),
+                BoundSelectionRule(
+                    descriptive_name='best_avg_precision',
+                    function=best_average_value,
+                    args={'metric': 'precision@', 'parameter': '100_abs'}
+                ),
+            ]
+            model_group_ids=[mg.model_group_id for mg in model_groups.values()],
+            train_end_times=['2014-01-01', '2015-01-01', '2016-01-01'],
+            regret_metric='precision@',
+            regret_parameter='100_abs',
+        )
 
 
 def test_regret_calculator_with_args():
