@@ -92,7 +92,7 @@ def test_DistanceFromBestTable():
 
         # get an ordered list of the models/groups for a particular metric/time
         query = '''
-            select model_id, dist_from_abs_worst, dist_from_best_case, dist_from_best_case_next_time
+            select model_id, raw_value, dist_from_best_case, dist_from_best_case_next_time
             from dist_table where metric = %s and parameter = %s and train_end_time = %s
             order by dist_from_best_case
         '''
@@ -113,73 +113,10 @@ def test_DistanceFromBestTable():
 
         ]
 
-
-def test_DistanceFromBestTable_lesser_is_better():
-    with testing.postgresql.Postgresql() as postgresql:
-        engine = create_engine(postgresql.url())
-        ensure_db(engine)
-        init_engine(engine)
-        model_groups = {
-            'good': ModelGroupFactory(model_type='myGoodClassifier'),
-            'bad': ModelGroupFactory(model_type='myBadClassifier'),
+        assert distance_table.observed_bounds == {
+            ('precision@', '100_abs'): (0.39, 0.8),
+            ('recall@', '100_abs'): (0.34, 0.8),
         }
-
-        class GoodModelFactory(ModelFactory):
-            model_group_rel = model_groups['good']
-
-        class BadModelFactory(ModelFactory):
-            model_group_rel = model_groups['bad']
-
-        models = {
-            'good_3y_ago': GoodModelFactory(train_end_time='2014-01-01'),
-            'good_2y_ago': GoodModelFactory(train_end_time='2015-01-01'),
-            'good_1y_ago': GoodModelFactory(train_end_time='2016-01-01'),
-            'bad_3y_ago': BadModelFactory(train_end_time='2014-01-01'),
-            'bad_2y_ago': BadModelFactory(train_end_time='2015-01-01'),
-            'bad_1y_ago': BadModelFactory(train_end_time='2016-01-01'),
-        }
-
-        class ImmediateEvalFactory(EvaluationFactory):
-            evaluation_start_time = factory.LazyAttribute(lambda o: o.model_rel.train_end_time)
-
-        class FPR100Factory(ImmediateEvalFactory):
-            metric = 'fpr@'
-            parameter = '100_abs'
-
-        FPR100Factory(model_rel=models['good_3y_ago'], value=0.6)
-        FPR100Factory(model_rel=models['good_2y_ago'], value=0.57)
-        FPR100Factory(model_rel=models['good_1y_ago'], value=0.59)
-        FPR100Factory(model_rel=models['bad_3y_ago'], value=0.8)
-        FPR100Factory(model_rel=models['bad_2y_ago'], value=0.7)
-        FPR100Factory(model_rel=models['bad_1y_ago'], value=0.75)
-        session.commit()
-        distance_table = DistanceFromBestTable(
-            db_engine=engine,
-            models_table='models',
-            distance_table='dist_table'
-        )
-        metrics = [
-            {'metric': 'fpr@', 'parameter': '100_abs'},
-        ]
-        model_group_ids = [mg.model_group_id for mg in model_groups.values()]
-        distance_table.create_and_populate(
-            model_group_ids,
-            ['2014-01-01', '2015-01-01', '2016-01-01'],
-            metrics)
-
-        # get an ordered list of the models/groups for a particular metric/time
-        query = '''
-            select model_id, dist_from_abs_worst, dist_from_best_case, dist_from_best_case_next_time
-            from dist_table where metric = %s and parameter = %s and train_end_time = %s
-            order by dist_from_best_case
-        '''
-
-        result = engine.execute(query, ('fpr@', '100_abs', '2014-01-01'))
-        assert [row for row in result] == [
-            (models['good_3y_ago'].model_id, 0.4, 0.0, 0.0),
-            (models['bad_3y_ago'].model_id, 0.2, 0.2, 0.13),
-
-        ]
 
 
 def test_BestDistancePlotter():
@@ -199,13 +136,13 @@ def test_BestDistancePlotter():
 
         # all of the model groups are within .22 of the best, so pick
         # a number higher than that and all should qualify
-        for value in df_dist[df_dist['pct_diff'] == 0.23]['pct_of_time'].values:
+        for value in df_dist[df_dist['distance'] == 0.23]['pct_of_time'].values:
             assert numpy.isclose(value, 1.0)
 
         # model group 1 (stable) should be within 0.11 1/2 of the time
         # if we included 2016 in the train_end_times, this would be 1/3!
         for value in df_dist[
-            (df_dist['pct_diff'] == 0.11) &
+            (df_dist['distance'] == 0.11) &
             (df_dist['model_group_id'] == 1)
         ]['pct_of_time'].values:
             assert numpy.isclose(value, 0.5)
@@ -224,7 +161,23 @@ def test_BestDistancePlotter_plot():
             )
         assert plot_patch.called
         args, kwargs = plot_patch.call_args
-        assert 'pct_diff' in kwargs['frame']
+        assert 'distance' in kwargs['frame']
         assert 'pct_of_time' in kwargs['frame']
-        assert kwargs['x_col'] == 'pct_diff'
+        assert kwargs['x_col'] == 'distance'
         assert kwargs['y_col'] == 'pct_of_time'
+
+
+def test_BestDistancePlotter_plot_bounds():
+    class FakeDistanceTable(object):
+        @property
+        def observed_bounds(self):
+            return {
+                ('precision@', '100_abs'): (0.02, 0.87),
+                ('recall@', '100_abs'): (0.0, 1.0),
+                ('false positives@', '300_abs'): (2, 162)
+            }
+
+    plotter = BestDistancePlotter(FakeDistanceTable())
+    assert plotter.plot_bounds('precision@', '100_abs') == (0.0, 1.0)
+    assert plotter.plot_bounds('recall@', '100_abs') == (0.0, 1.0)
+    assert plotter.plot_bounds('false positives@', '300_abs') == (2, 178)

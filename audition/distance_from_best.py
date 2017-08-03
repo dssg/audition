@@ -1,4 +1,5 @@
-from audition.utils import greater_is_better, str_in_sql
+from audition.utils import str_in_sql
+from audition.metric_directionality import sql_rank_order
 from audition.plotting import plot_cats
 import pandas as pd
 import numpy as np
@@ -33,22 +34,10 @@ class DistanceFromBestTable(object):
             train_end_time timestamp,
             metric text,
             parameter text,
-            dist_from_abs_worst float,
+            raw_value float,
             dist_from_best_case float,
             dist_from_best_case_next_time float
         )'''.format(self.distance_table))
-
-    def _metric_value_order(self, metric):
-        if greater_is_better(metric):
-            return 'desc'
-        else:
-            return 'asc'
-
-    def _abs_worst(self, metric):
-        if greater_is_better(metric):
-            return 0.0
-        else:
-            return 1.0
 
     def _populate(self, model_group_ids, train_end_times, metrics):
         """Populate the distance table with the given model groups, times, and metrics
@@ -100,7 +89,7 @@ class DistanceFromBestTable(object):
                         train_end_time,
                         '{metric}',
                         '{parameter}',
-                        abs(value - {abs_worst}) as dist_from_abs_worst,
+                        value as raw_value,
                         abs(value - best_val) dist_from_best_case
                     FROM model_tols
                 )
@@ -119,10 +108,26 @@ class DistanceFromBestTable(object):
                 models_table=self.models_table,
                 metric=metric['metric'],
                 parameter=metric['parameter'],
-                metric_value_order=self._metric_value_order(metric['metric']),
-                abs_worst=self._abs_worst(metric['metric']),
+                metric_value_order=sql_rank_order(metric['metric']),
                 new_table=self.distance_table
             ))
+
+    @property
+    def observed_bounds(self):
+        query = '''
+            SELECT
+                metric,
+                parameter,
+                min(raw_value),
+                max(raw_value)
+            FROM {distance_table} dist
+            GROUP BY metric, parameter
+        '''.format(distance_table=self.distance_table)
+        return dict(
+            ((metric, parameter), (minimum, maximum))
+            for metric, parameter, minimum, maximum
+            in self.db_engine.execute(query)
+        )
 
     def create_and_populate(
         self,
@@ -193,6 +198,23 @@ class BestDistancePlotter(object):
         """
         self.distance_from_best_table = distance_from_best_table
 
+    def plot_bounds(self, metric, parameter):
+        observed_min, observed_max = self.distance_from_best_table\
+            .observed_bounds[(metric, parameter)]
+        if observed_min >= 0.0 and observed_max <= 1.0:
+            plot_min, plot_max = (0.0, 1.0)
+        else:
+            # 10% padding on the high end
+            padding = 0.1*(observed_max - float(observed_min))
+            plot_min = observed_min
+            plot_max = observed_max + padding
+
+        return plot_min, plot_max
+
+    def plot_tick_dist(self, plot_min, plot_max):
+        dist = plot_max - plot_min
+        return dist/100.0
+
     def generate_plot_data(
         self,
         metric,
@@ -216,6 +238,8 @@ class BestDistancePlotter(object):
             '(select {} as model_group_id)'.format(model_group_id)
             for model_group_id in model_group_ids
         ])
+        plot_min, plot_max = self.plot_bounds(metric, parameter)
+        plot_tick_dist = self.plot_tick_dist(plot_min, plot_max)
         sel_params = {
             'metric': metric,
             'parameter': parameter,
@@ -223,23 +247,25 @@ class BestDistancePlotter(object):
             'distance_table': self.distance_from_best_table.distance_table,
             'model_group_str': str_in_sql(model_group_ids),
             'train_end_str': str_in_sql(train_end_times),
+            'series_start': plot_min,
+            'series_end': plot_max,
+            'series_tick': plot_tick_dist,
         }
         sel = """
                 with model_group_ids as ({model_group_union_sql}),
                 x_vals AS (
-                  SELECT m.model_group_id, s.pct_diff
-                  FROM
-                  (
-                  SELECT GENERATE_SERIES(0,100) / 100.0 AS pct_diff
-                  ) s
+                  SELECT m.model_group_id, s.distance
+                  FROM (SELECT GENERATE_SERIES(
+                    {series_start}, {series_end}, {series_tick}
+                  ) AS distance) s
                   CROSS JOIN
                   (
                   SELECT DISTINCT model_group_id FROM model_group_ids
                   ) m
                 )
-                SELECT dist.model_group_id, pct_diff, mg.model_type,
+                SELECT dist.model_group_id, distance, mg.model_type,
                        COUNT(*) AS num_models,
-                       AVG(CASE WHEN dist_from_best_case <= pct_diff THEN 1 ELSE 0 END) AS pct_of_time
+                       AVG(CASE WHEN dist_from_best_case <= distance THEN 1 ELSE 0 END) AS pct_of_time
                 FROM {distance_table} dist
                 JOIN x_vals USING(model_group_id)
                 JOIN results.model_groups mg using (model_group_id)
@@ -252,7 +278,7 @@ class BestDistancePlotter(object):
             """.format(**sel_params)
 
         return pd.read_sql(sel, self.distance_from_best_table.db_engine)\
-            .sort_values(['model_group_id', 'pct_diff'])
+            .sort_values(['model_group_id', 'distance'])
 
     def plot_all_best_dist(self, metric_filters, model_group_ids, train_end_times):
         """For each metric, plot the percentage of time that a model group is
@@ -316,7 +342,7 @@ def plot_best_dist(metric, parameter, df_best_dist, **plt_format_args):
 
     plot_cats(
         frame=df_best_dist,
-        x_col='pct_diff',
+        x_col='distance',
         y_col='pct_of_time',
         cat_col=cat_col,
         title=plt_title,
