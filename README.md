@@ -6,6 +6,8 @@ Choosing the best classifier models
 [![codecov](https://codecov.io/gh/dssg/audition/branch/master/graph/badge.svg)](https://codecov.io/gh/dssg/audition)
 [![codeclimate](https://codeclimate.com/github/dssg/audition.png)](https://codeclimate.com/github/dssg/audition)
 
+**Note**: Audition is now a bundled component of [Triage](https://github.com/dssg/triage), and future development will take place there. To utilize the Audition within your custom pipeline, you may still import it from there.
+
 ## Overview
 Audition is a tool for picking the best trained classifiers from a predictive analytics experiment. Often, production-scale experiments will come up with thousands of trained models, and sifting through all of those results can be time-consuming even after calculating the usual basic metrics like precision and recall. Which metrics matter most? Should you prioritize the best metric value over time or treat recent data as most important? Is low metric variance important? The answers to questions like these may not be obvious up front. Audition introduces a structured, semi-automated way of filtering models based on what you consider important, with an interface that is easy to interact with from a Jupyter notebook (with plots), but is driven by configuration that can easily be scripted.
 
